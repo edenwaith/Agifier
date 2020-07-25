@@ -30,6 +30,7 @@
     
 }
 
+// Reduce each color component to the closest EGA-style equivalent value.
 // In hex, each component can only be 00, 55, AA, or FF (0, 85, 170, 255)
 // 00 = 0 = 0
 // 55 = 85 = 0.333333
@@ -97,10 +98,7 @@
 							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0], // White
 						];
     
-    // Generating a random number just to check that this works and the image isn't one solid color
-//     int lowerBound = 0;
-//     int upperBound = 15;
-//     int rndValue = lowerBound + arc4random() % (upperBound - lowerBound);
+
     int indexOfClosestColor = 0;
     double shortestDistance = 255 * sqrt(3.0);
     
@@ -113,12 +111,9 @@
     // Side note: if we really wanted to get fancy, just cache each color into a dictionary
     // and initially do a look up to determine the best EGA color for a given color before
     // looping through.  But that would probably be a better solution for really large images.
-    // If I really wanted to get fancy, perform a bunch of parallel computations and then check
-    // what is the shortest distance.  There is probably some incredibly computer science-y
-    // method of doing that.
     
     // Initial results: This seems to do well with greys and golds/browns, but fails
-    // when it comes to colors like greens or blues.  Perhaps increase the color saturation?
+    // when it comes to colors like greens, blues, or yellows.  Perhaps increase the color saturation?
     // Would changing the color then resizing help?  That would be a lot more processing, though.
     
 	CGFloat r2 = [updatedPixelColor redComponent];
@@ -133,6 +128,7 @@
     	CGFloat g1 = [currentColor greenComponent];
     	CGFloat b1 = [currentColor blueComponent];
     	
+		// Good old algebra used to calculate the distance between the color components in 3D space
     	CGFloat distance = sqrt(pow((r2 - r1), 2) + pow((g2 - g1), 2) + pow((b2 - b1), 2));
     	
     	if (distance == 0.0)
@@ -165,25 +161,30 @@
 	
 	CGFloat scale = 1.0;
 	
-//	CIFilter *filter = [CIFilter filterWithName:@"CILanczosScaleTransform"]; // NSImageInterpolationNone
-//    [filter setValue:image forKey:@"inputImage"];
-//    [filter setValue:@(scale) forKey:@"inputScale"];
-//    [filter setValue:@1.0 forKey:@"inputAspectRatio"];
-//    CIImage *resizedImage = filter.outputImage;
+
 	
 	NSBitmapImageRep *initialBitmap = [[NSBitmapImageRep alloc] initWithCIImage: image];
 	NSSize initialImageSize = [initialBitmap size];
 	
 	scale = 200.0/initialImageSize.height;
 	
+	// NOTE: A couple of these CIFilters were used for experimentation and can easily be used in this plug-in.
+		
+//	CIFilter *filter = [CIFilter filterWithName:@"CILanczosScaleTransform"]; // How to recreate NSImageInterpolationNone?
+//    [filter setValue:image forKey:@"inputImage"];
+//    [filter setValue:@(scale) forKey:@"inputScale"];
+//    [filter setValue:@1.0 forKey:@"inputAspectRatio"];
+//    CIImage *resizedImage = filter.outputImage;
+	
 	// https://boredzo.org/blog/archives/2010-02-06/nearest-neighbor-iu
+	// Pixelation Scaling
 //	CIFilter * scaler = [CIFilter filterWithName:@"CIPixellate"];
 //	[scaler setDefaults];
 //	[scaler setValue:[NSNumber numberWithFloat:4] forKey:@"inputScale"];
 //	[scaler setValue:image forKey:@"inputImage"];
 //	CIImage *pixelatedImage = [scaler valueForKey:@"outputImage"];
 
-	// Saturation?
+	// Saturation
 //	CIFilter *colorControlsFilter = [CIFilter filterWithName:@"CIColorControls"];
 //	[colorControlsFilter setDefaults];
 //	[colorControlsFilter setValue: image forKey:@"inputImage"];
@@ -202,6 +203,7 @@
 	CIImage *resizedImage = [resizeFilter valueForKey:@"outputImage"];
 	
 	// Apply the Posterize CIFilter to reduce the number of colors
+	// Color Posterize
 //	CIFilter* posterize = [CIFilter filterWithName:@"CIColorPosterize"];
 //	[posterize setDefaults];
 //	[posterize setValue:[NSNumber numberWithDouble:4.0] forKey:@"inputLevels"];
@@ -216,12 +218,13 @@
 	int height = (int)bitmapSize.height;
 	int width = (int)bitmapSize.width;
 		
+	// Use GCD to help parallelize this, otherwise this is noticeably slooooow
 	// https://oleb.net/blog/2013/07/parallelize-for-loops-gcd-dispatch_apply/
 	// https://www.objc.io/issues/2-concurrency/low-level-concurrency-apis/
 	dispatch_apply(width, dispatch_get_global_queue(0, 0), ^(size_t x) {
 		for (size_t y = 0; y < height; y++) {
 			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
-			// NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
+			// NSColor *newPixelColor = [self closestEGAColor: originalPixelColor]; // Use this for actual EGA colors
 			NSColor *newPixelColor = [self closerEGAColor: originalPixelColor];
 			[bitmap setColor: newPixelColor atX: x y: y];
 		}

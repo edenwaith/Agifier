@@ -6,11 +6,8 @@
  * 	Author: Chad Armstrong (chad@edenwaith.com)
  *	Date: 5- July 2020
  *	To compile: gcc -w -framework Foundation -framework AppKit -framework QuartzCore agi_image_converter.m -o agi_image_converter
- *	To run: ./agi_image_converter path/to/WORDS.TOK
+ *	To run: ./agi_image_converter path/to/image.png
  *
- *	Resources:
- *	- 
- *	- 
  */
 
 #import <Foundation/Foundation.h>
@@ -67,10 +64,6 @@ NSColor * closestEGAColor(NSColor *pixelColor)
 							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0], // White
 						];
     
-    // Generating a random number just to check that this works and the image isn't one solid color
-//     int lowerBound = 0;
-//     int upperBound = 15;
-//     int rndValue = lowerBound + arc4random() % (upperBound - lowerBound);
     int indexOfClosestColor = 0;
     double shortestDistance = 255 * sqrt(3.0);
     
@@ -81,14 +74,11 @@ NSColor * closestEGAColor(NSColor *pixelColor)
     // Side note: if we really wanted to get fancy, just cache each color into a dictionary
     // and initially do a look up to determine the best EGA color for a given color before 
     // looping through.  But that would probably be a better solution for really large images.
-    // If I really wanted to get fancy, perform a bunch of parallel computations and then check
-    // what is the shortest distance.  There is probably some incredibly computer science-y 
-    // method of doing that.
+
     
     // Initial results: This seems to do well with greys and golds/browns, but fails
-    // when it comes to colors like greens or blues.  Perhaps increase the color saturation?
+    // when it comes to colors like greens, blues, or yellows.  Perhaps increase the color saturation?
     // Would changing the color then resizing help?  That would be a lot more processing, though.
-    
     for (int i = 0; i < 16; i++)
     {
     	NSColor *currentColor = colorPalette[i];
@@ -124,6 +114,7 @@ NSColor * closestEGAColor(NSColor *pixelColor)
     		}
     	}
     }
+    
     // NSLog(@"shortestDistance: %f indexOFClosestColor: %d", shortestDistance, indexOfClosestColor);
 
 	return colorPalette[indexOfClosestColor];
@@ -188,20 +179,8 @@ int main(int argc, char *argv[])
 	[posterize setValue:inputImage forKey:@"inputImage"];
 	
 	CIImage *posterizeResult = [posterize valueForKey:@"outputImage"];
-	
-// 	NSCIImageRep *rep = [NSCIImageRep imageRepWithCIImage:posterizeResult];
-// 	NSImage *posterizedImage = [[NSImage alloc] initWithSize: [rep size]];
-// 	[posterizedImage addRepresentation:rep];
-
-	// TODO: Need to figure out how to convert the CIImage to NSBitmapImageRep
-	
-	// NSImage *posterizedImage = [[NSImage alloc] initWithCIImage:posterizeResult];
 	NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCIImage: posterizeResult]; // (NSBitmapImageRep *)[[posterizedImage representations] objectAtIndex: 0];
-	
-	// This is crashing because the first representation of posterizedImage is returned as an NSCIImageRep
-	// instead of an NSBitmapImageRep.  It seems like colorAtX:y does not exist for NSCIImageRep,
-	// so this crashes due to an unknown selector.
-	
+		
 	// Cycle through each pixel and find the nearest color and replace it in the standard EGA palette
 	for (int x = 0; x < (int)halfImageWidth; x++)
 	{
