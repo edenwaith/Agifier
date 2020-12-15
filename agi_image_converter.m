@@ -56,7 +56,7 @@ NSColor * closestEGAColor(NSColor *pixelColor)
 							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // Light grey
 							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // Dark grey
 							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // Light blue
-							[NSColor colorWithCalibratedRed: 0.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // Light green
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // Light green
 							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 1.0 alpha: 1.0], // Light cyan
 							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // Light red
 							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // Light magenta
@@ -107,7 +107,7 @@ NSColor * closestEGAColor(NSColor *pixelColor)
     	else
     	{
     		// What if distance == shortestDistance?
-    		if (distance < shortestDistance)
+    		if (distance <= shortestDistance)
     		{
     			shortestDistance = distance;
     			indexOfClosestColor = i;

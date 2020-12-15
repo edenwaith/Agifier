@@ -57,7 +57,7 @@
 }
 
 // This comes closer and it adjusts each color to have the proper EGA levels for each color component.
-// Each color component is marked at internvals of thirds (0, 1/3, 2/3, 1), which in hex is 0x00, 0x55, 0xAA, 0xFF.
+// Each color component is marked at intervals of thirds (0, 1/3, 2/3, 1), which in hex is 0x00, 0x55, 0xAA, 0xFF.
 - (NSColor *) closerEGAColor: (NSColor *)pixelColor
 {
 	CGFloat red = [pixelColor redComponent];
@@ -72,6 +72,26 @@
 	return [NSColor colorWithCalibratedRed: updatedRed green: updatedGreen blue: updatedBlue alpha: 1.0];
 }
 
+
+/// Convert an NSColor and return its hex representation as a string (RRGGBB)
+/// @param egaColor The original NSColor to convert into a hex string
+- (NSString *) convertNSColorToHex:(NSColor *)egaColor
+{
+	NSString *hexString = nil;
+	
+	CGFloat red = [egaColor redComponent];
+	CGFloat green = [egaColor greenComponent];
+	CGFloat blue = [egaColor blueComponent];
+	
+	int redInt = (int)(red * 255.0);
+	int greenInt = (int)(green * 255.0);
+	int blueInt = (int)(blue * 255.0);
+	
+	hexString = [NSString stringWithFormat:@"%02X%02X%02X", redInt, greenInt, blueInt];
+	
+	return hexString;
+}
+
 /// Calculate and return the closest EGA color to the given pixelColor
 /// Note: There are still issues with trying to select a proper EGA color
 /// Might need to saturate the colors or determine a better algorithm to
@@ -80,30 +100,108 @@
 /// @param pixelColor The color of the current pixel
 - (NSColor *) closestEGAColor:(NSColor *)pixelColor
 {
-	NSArray *colorPalette = @[	[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 0.0 alpha: 1.0], // Black
-							[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // Blue
-							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 0.0 alpha: 1.0], // Green
-							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // Cyan
-							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 0.0 alpha: 1.0], // Red
-							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // Magenta
-							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 85.0/255.0 blue: 0.0 alpha: 1.0], // Brown
-							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // Light grey
-							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // Dark grey
-							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // Light blue
-							[NSColor colorWithCalibratedRed: 0.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // Light green
-							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 1.0 alpha: 1.0], // Light cyan
-							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // Light red
-							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // Light magenta
-							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // Yellow
-							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0], // White
+	NSArray *colorPalette = @[	[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 0.0 alpha: 1.0], // 0: Black
+							[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // 1: Blue
+							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 0.0 alpha: 1.0], // 2: Green
+							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // 3: Cyan
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 0.0 alpha: 1.0], // 4: Red
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // 5: Magenta
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 85.0/255.0 blue: 0.0 alpha: 1.0], // 6: Brown
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // 7: Light grey
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // 8: Dark grey
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // 9: Light blue
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // 10: Light green
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 1.0 alpha: 1.0], // 11: Light cyan
+							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // 12: Light red
+							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // 13: Light magenta
+							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // 14: Yellow
+							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0], // 15: White
 						];
+	
+	// All 64 colors of the full EGA color palette.  Each color is paired up with a matching
+	// color in the 16 color palette (above).
+	NSDictionary *colorMatch = @{
+		@"000000": @0,
+		@"000055": @1,
+		@"0000AA": @1,
+		@"0000FF": @1,
+		@"005500": @2,
+		@"005555": @8,
+		@"0055AA": @1,
+		@"0055FF": @9,
+		@"00AA00": @2,
+		@"00AA55": @2,
+		@"00AAAA": @3,
+		@"00AAFF": @3,
+		@"00FF00": @2,
+		@"00FF55": @10,
+		@"00FFAA": @3,
+		@"00FFFF": @11,
+		@"550000": @4,
+		@"550055": @8,
+		@"5500AA": @1,
+		@"5500FF": @9,
+		@"555500": @8,
+		@"555555": @8,
+		@"5555AA": @9,
+		@"5555FF": @9,
+		@"55AA00": @2,
+		@"55AA55": @2,
+		@"55AAAA": @3,
+		@"55AAFF": @11,
+		@"55FF00": @10,
+		@"55FF55": @10,
+		@"55FFAA": @10,
+		@"55FFFF": @11,
+		@"AA0000": @4,
+		@"AA0055": @4,
+		@"AA00AA": @5,
+		@"AA00FF": @5,
+		@"AA5500": @6,
+		@"AA5555": @6,
+		@"AA55AA": @5,
+		@"AA55FF": @9,
+		@"AAAA00": @2, // Originally was set to @6, but trees were too brown
+		@"AAAA55": @7,
+		@"AAAAAA": @7,
+		@"AAAAFF": @7,
+		@"AAFF00": @10,
+		@"AAFF55": @10,
+		@"AAFFAA": @7,
+		@"AAFFFF": @11,
+		@"FF0000": @4,
+		@"FF0055": @12,
+		@"FF00AA": @5,
+		@"FF00FF": @13,
+		@"FF5500": @12,
+		@"FF5555": @12,
+		@"FF55AA": @12,
+		@"FF55FF": @13,
+		@"FFAA00": @6,
+		@"FFAA55": @14, // Was 12, changed to 14
+		@"FFAAAA": @7,
+		@"FFAAFF": @13,
+		@"FFFF00": @14,
+		@"FFFF55": @14,
+		@"FFFFAA": @14,
+		@"FFFFFF": @15
+	};
     
-
+	// Get the normalized color where each RGB component is set to either 00, 55, AA, or FF
+	NSColor *updatedPixelColor = [self closerEGAColor:pixelColor];
+	NSString *updatedPixelHexValue = [self convertNSColorToHex:updatedPixelColor];
+	NSNumber *colorPaletteIndex = colorMatch[updatedPixelHexValue]; // Find the closest matching EGA color
+	
+	return colorPalette[[colorPaletteIndex intValue]];
+	
+	// Below was the original code that performed a mathematical calculation of the "closest" EGA
+	// color, but some colors (especially yellows and greens) need more curation to ensure a more
+	// "proper" color is selected.
+	
+	/*
     int indexOfClosestColor = 0;
     double shortestDistance = 255 * sqrt(3.0);
     
-	NSColor *updatedPixelColor = [self closerEGAColor:pixelColor];
-	
     // Loop through all 16 possible EGA colors
     // Perform the calculation of how "far" pixelColor is from an EGA color
     // If the distance is 0, then it is a perfect match.  Stop looping.
@@ -155,13 +253,16 @@
     // NSLog(@"shortestDistance: %f indexOFClosestColor: %d", shortestDistance, indexOfClosestColor);
 
 	return colorPalette[indexOfClosestColor];
+	 */
 }
 
+
+/// De-make an image so it has the appearance of a computer game from the mid-1980s.
+/// @param image The original image to de-make
+/// @param userObject The user object
 - (CIImage*) convert:(CIImage*)image userObject:(id)userObject {
 	
 	CGFloat scale = 1.0;
-	
-
 	
 	NSBitmapImageRep *initialBitmap = [[NSBitmapImageRep alloc] initWithCIImage: image];
 	NSSize initialImageSize = [initialBitmap size];
@@ -223,9 +324,12 @@
 	// https://www.objc.io/issues/2-concurrency/low-level-concurrency-apis/
 	dispatch_apply(width, dispatch_get_global_queue(0, 0), ^(size_t x) {
 		for (size_t y = 0; y < height; y++) {
+			// https://ua.reonis.com/index.php?topic=3797.msg54893#msg54893
+			// The above link mentions a very similar logic, except it then maps each of the possible 64 colors
+			// to a 16 color EGA palette.
 			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
-			// NSColor *newPixelColor = [self closestEGAColor: originalPixelColor]; // Use this for actual EGA colors
-			NSColor *newPixelColor = [self closerEGAColor: originalPixelColor];
+			NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
+			
 			[bitmap setColor: newPixelColor atX: x y: y];
 		}
 	});
