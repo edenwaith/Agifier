@@ -284,6 +284,24 @@
 //	[scaler setValue:[NSNumber numberWithFloat:4] forKey:@"inputScale"];
 //	[scaler setValue:image forKey:@"inputImage"];
 //	CIImage *pixelatedImage = [scaler valueForKey:@"outputImage"];
+	
+	// Example code by Gus Mueller showing how to resize an image
+//	CIFilter * scaler = [CIFilter filterWithName:@"CIPixellate"];
+//
+//	[scaler setDefaults];
+//	[scaler setValue:[NSNumber numberWithFloat:1] forKey:@"inputScale"];
+//	[scaler setValue:img forKey:@"inputImage"];
+//
+//	img = [scaler valueForKey:@"outputImage"];
+//
+//	CIFilter *f = [CIFilter filterWithName:@"CIAffineTransform"];
+//
+//	NSAffineTransform *t = [NSAffineTransform transform];
+//	[t scaleXBy:_scale yBy:_scale];
+//
+//	[f setValue:t forKey:@"inputTransform"];
+//	[f setValue:img forKey:@"inputImage"];
+//	img = [f valueForKey:@"outputImage"];
 
 	// Saturation
 //	CIFilter *colorControlsFilter = [CIFilter filterWithName:@"CIColorControls"];
@@ -295,6 +313,7 @@
 //	CIImage *saturatedImage = [colorControlsFilter valueForKey:@"outputImage"];
 	
 	// Resize the image using a CIAffineTransform filter.  A nearest neighbor approach would be even better
+	// TODO: Resize using nearest neighbor, not an affine transform.  Or perhaps this is already doing a pixel-y version?
 	CIFilter *resizeFilter = [CIFilter filterWithName:@"CIAffineTransform"];
 	NSAffineTransform *affineTransform = [NSAffineTransform transform];
 	[affineTransform scaleXBy: scale yBy: scale];
@@ -333,6 +352,9 @@
 			[bitmap setColor: newPixelColor atX: x y: y];
 		}
 	});
+	
+	// TODO: Need to resize once more to stretch out the pixels so they are double-wide pixels to simulate the
+	// double-wide pixels of a Sierra AGI game which had a resolution of 160x200, but was stretched out to 320x200
 	
 	// Resize the canvas
 	id <ACDocument> theDoc = [[NSDocumentController sharedDocumentController] currentDocument];
