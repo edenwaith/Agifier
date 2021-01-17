@@ -193,71 +193,17 @@
 	NSNumber *colorPaletteIndex = colorMatch[updatedPixelHexValue]; // Find the closest matching EGA color
 	
 	return colorPalette[[colorPaletteIndex intValue]];
-	
-	// Below was the original code that performed a mathematical calculation of the "closest" EGA
-	// color, but some colors (especially yellows and greens) need more curation to ensure a more
-	// "proper" color is selected.
-	
-	/*
-    int indexOfClosestColor = 0;
-    double shortestDistance = 255 * sqrt(3.0);
-    
-    // Loop through all 16 possible EGA colors
-    // Perform the calculation of how "far" pixelColor is from an EGA color
-    // If the distance is 0, then it is a perfect match.  Stop looping.
-    // Otherwise, keep looping and just keep track of the color with the "shortest" distance.
-    // Side note: if we really wanted to get fancy, just cache each color into a dictionary
-    // and initially do a look up to determine the best EGA color for a given color before
-    // looping through.  But that would probably be a better solution for really large images.
-    
-    // Initial results: This seems to do well with greys and golds/browns, but fails
-    // when it comes to colors like greens, blues, or yellows.  Perhaps increase the color saturation?
-    // Would changing the color then resizing help?  That would be a lot more processing, though.
-    
-	CGFloat r2 = [updatedPixelColor redComponent];
-	CGFloat g2 = [updatedPixelColor greenComponent];
-	CGFloat b2 = [updatedPixelColor blueComponent];
-	
-    for (int i = 0; i < 16; i++)
-    {
-    	NSColor *currentColor = colorPalette[i];
-    	
-    	CGFloat r1 = [currentColor redComponent];
-    	CGFloat g1 = [currentColor greenComponent];
-    	CGFloat b1 = [currentColor blueComponent];
-    	
-		// Good old algebra used to calculate the distance between the color components in 3D space
-    	CGFloat distance = sqrt(pow((r2 - r1), 2) + pow((g2 - g1), 2) + pow((b2 - b1), 2));
-    	
-    	if (distance == 0.0)
-    	{
-    		shortestDistance = distance;
-    		indexOfClosestColor = i;
-    		break;
-    	}
-    	else if (i == 0)
-    	{
-    		shortestDistance = distance;
-    		indexOfClosestColor = i;
-    	}
-    	else
-    	{
-    		// What if distance == shortestDistance?
-    		if (distance < shortestDistance)
-    		{
-    			shortestDistance = distance;
-    			indexOfClosestColor = i;
-    		}
-    	}
-    }
-    // NSLog(@"shortestDistance: %f indexOFClosestColor: %d", shortestDistance, indexOfClosestColor);
-
-	return colorPalette[indexOfClosestColor];
-	 */
 }
 
+
+/// Create a filter to resize a CIImage
+/// @param widthScale The scale for the intended width
+/// @param heightScale The scale for the intended height
+/// @param image The original image to resize
 - (CIFilter *) resizeFilter: (CGFloat)widthScale heightScale: (CGFloat)heightScale image: (CIImage *)image {
 	
+	// NOTE: https://boredzo.org/blog/archives/2010-02-06/nearest-neighbor-iu also has other examples
+	// of nearest neighbor scaling
 	CIFilter *resizeFilter = [CIFilter filterWithName:@"CIAffineTransform"];
 	NSAffineTransform *affineTransform = [NSAffineTransform transform];
 	[affineTransform scaleXBy: widthScale yBy: heightScale];
@@ -272,48 +218,20 @@
 /// @param userObject The user object
 - (CIImage *) convert:(CIImage *)image userObject:(id)userObject {
 	
-	CGFloat scale = 1.0;
-	
 	NSBitmapImageRep *initialBitmap = [[NSBitmapImageRep alloc] initWithCIImage: image];
 	NSSize initialImageSize = [initialBitmap size];
+	CGFloat scale = 320.0/initialImageSize.width;
 	
-	// scale = 200.0/initialImageSize.height;
-	scale = 320.0/initialImageSize.width;
+	// Resize the image (retain the original ratio) to a width of 320 pixels
+	CIFilter *initialResizeFilter = [self resizeFilter:scale heightScale:scale image:image];
+	CIImage *initialResizedImage =  [initialResizeFilter valueForKey:@"outputImage"];
 	
-	// NOTE: A couple of these CIFilters were used for experimentation and can easily be used in this plug-in.
+	// Squash the image horizontally so it is only 160 pixels in width, but the height is preserved.
+	CIFilter *squashedResizeFilter = [self resizeFilter:0.5 heightScale: 1.0 image: initialResizedImage];
+	CIImage *resizedImage = [squashedResizeFilter valueForKey:@"outputImage"];
 		
-//	CIFilter *filter = [CIFilter filterWithName:@"CILanczosScaleTransform"]; // How to recreate NSImageInterpolationNone?
-//    [filter setValue:image forKey:@"inputImage"];
-//    [filter setValue:@(scale) forKey:@"inputScale"];
-//    [filter setValue:@1.0 forKey:@"inputAspectRatio"];
-//    CIImage *resizedImage = filter.outputImage;
-	
-	// https://boredzo.org/blog/archives/2010-02-06/nearest-neighbor-iu
-	// Pixelation Scaling
-//	CIFilter * scaler = [CIFilter filterWithName:@"CIPixellate"];
-//	[scaler setDefaults];
-//	[scaler setValue:[NSNumber numberWithFloat:4] forKey:@"inputScale"];
-//	[scaler setValue:image forKey:@"inputImage"];
-//	CIImage *pixelatedImage = [scaler valueForKey:@"outputImage"];
-	
-	// Example code by Gus Mueller showing how to resize an image
-//	CIFilter * scaler = [CIFilter filterWithName:@"CIPixellate"];
-//
-//	[scaler setDefaults];
-//	[scaler setValue:[NSNumber numberWithFloat:1] forKey:@"inputScale"];
-//	[scaler setValue:img forKey:@"inputImage"];
-//
-//	img = [scaler valueForKey:@"outputImage"];
-//
-//	CIFilter *f = [CIFilter filterWithName:@"CIAffineTransform"];
-//
-//	NSAffineTransform *t = [NSAffineTransform transform];
-//	[t scaleXBy:_scale yBy:_scale];
-//
-//	[f setValue:t forKey:@"inputTransform"];
-//	[f setValue:img forKey:@"inputImage"];
-//	img = [f valueForKey:@"outputImage"];
-
+	// NOTE: A couple of these CIFilters were used for experimentation and can easily be used in this plug-in.
+			
 	// Saturation
 //	CIFilter *colorControlsFilter = [CIFilter filterWithName:@"CIColorControls"];
 //	[colorControlsFilter setDefaults];
@@ -323,23 +241,6 @@
 //	[colorControlsFilter setValue: [NSNumber numberWithFloat: 1.0] forKey:@"inputContrast"];
 //	CIImage *saturatedImage = [colorControlsFilter valueForKey:@"outputImage"];
 	
-	// Resize the image using a CIAffineTransform filter.  A nearest neighbor approach would be even better
-	// TODO: Resize using nearest neighbor, not an affine transform.  Or perhaps this is already doing a pixel-y version?
-//	CIFilter *resizeFilter = [CIFilter filterWithName:@"CIAffineTransform"];
-//	NSAffineTransform *affineTransform = [NSAffineTransform transform];
-//	[affineTransform scaleXBy: scale yBy: scale];
-//	[resizeFilter setValue:affineTransform forKey:@"inputTransform"];
-//	[resizeFilter setValue:image forKey:@"inputImage"];
-// [resizeFilter setValue:saturatedImage forKey:@"inputImage"];
-	
-	// Resize the image (retain the original ratio) to a width of 320 pixels
-	CIFilter *initialResizeFilter = [self resizeFilter:scale heightScale:scale image:image];
-	CIImage *initialResizedImage =  [initialResizeFilter valueForKey:@"outputImage"];
-	
-	// Squash the image horizontally so it is only 160 pixels in width.  This will resized again later.
-	CIFilter *squashedResizeFilter = [self resizeFilter:0.5 heightScale: 1.0 image: initialResizedImage];
-	CIImage *resizedImage = [squashedResizeFilter valueForKey:@"outputImage"];
-		
 	// Apply the Posterize CIFilter to reduce the number of colors
 	// Color Posterize
 //	CIFilter* posterize = [CIFilter filterWithName:@"CIColorPosterize"];
@@ -348,27 +249,14 @@
 //	[posterize setValue:resizedImage forKey:@"inputImage"];
 //	CIImage *posterizeResult = [posterize valueForKey:@"outputImage"];
 	
-	// Resize once more to stretch out the pixels so they are double-wide pixels to simulate the double-wide
-	// pixels of a Sierra AGI game which had a resolution of 160x200, but was stretched out to 320x200
-//	CIFilter *enlargedResizeFilter = [self resizeFilter:2.0 heightScale: 1.0 image: resizedImage];
-//	CIImage *enlargedResizedImage = [enlargedResizeFilter valueForKey:@"outputImage"];
-	
-//	CIFilter *pixelateFilter = [CIFilter filterWithName:@"CIPixellate"];
-//	[pixelateFilter setDefaults];
-//	[pixelateFilter setValue:[NSNumber numberWithFloat:1] forKey:@"inputScale"];
-//	[pixelateFilter setValue:enlargedResizedImage forKey:@"inputImage"];
-//	CIImage *pixelatedImage = [pixelateFilter valueForKey:@"outputImage"];
-	
 	// Cycle through each pixel and find the nearest color and replace it in the standard EGA palette
-	// The performance of this sucks horribly and really could be optimized and parallellized
 	NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCIImage: resizedImage];
-	
-	// NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCIImage: posterizeResult]; // If I want to posterize the image
 	NSSize bitmapSize = [bitmap size];  // Get the size of the bitmap
 	int height = (int)bitmapSize.height;
 	int width = (int)bitmapSize.width;
 	
 	// Draw out the updated colors to the resizedBitmap to create the pixelated double-wide pixels look
+	// This bitmap is twice the width of resizedImage
     NSBitmapImageRep *resizedBitmap = [[NSBitmapImageRep alloc]
               initWithBitmapDataPlanes:NULL
                             pixelsWide:width*2
@@ -393,9 +281,9 @@
 			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
 			NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
 			
+			// Draw out the double-wide pixel to resizedBitmap
 			[resizedBitmap setColor: newPixelColor atX: (2*x) y: y];
 			[resizedBitmap setColor: newPixelColor atX: (2*x)+1 y: y];
-			
 		}
 	});
 		
