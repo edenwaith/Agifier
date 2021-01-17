@@ -256,18 +256,29 @@
 	 */
 }
 
+- (CIFilter *) resizeFilter: (CGFloat)widthScale heightScale: (CGFloat)heightScale image: (CIImage *)image {
+	
+	CIFilter *resizeFilter = [CIFilter filterWithName:@"CIAffineTransform"];
+	NSAffineTransform *affineTransform = [NSAffineTransform transform];
+	[affineTransform scaleXBy: widthScale yBy: heightScale];
+	[resizeFilter setValue:affineTransform forKey:@"inputTransform"];
+	[resizeFilter setValue:image forKey:@"inputImage"];
+	
+	return resizeFilter;
+}
 
 /// De-make an image so it has the appearance of a computer game from the mid-1980s.
 /// @param image The original image to de-make
 /// @param userObject The user object
-- (CIImage*) convert:(CIImage*)image userObject:(id)userObject {
+- (CIImage *) convert:(CIImage *)image userObject:(id)userObject {
 	
 	CGFloat scale = 1.0;
 	
 	NSBitmapImageRep *initialBitmap = [[NSBitmapImageRep alloc] initWithCIImage: image];
 	NSSize initialImageSize = [initialBitmap size];
 	
-	scale = 200.0/initialImageSize.height;
+	// scale = 200.0/initialImageSize.height;
+	scale = 320.0/initialImageSize.width;
 	
 	// NOTE: A couple of these CIFilters were used for experimentation and can easily be used in this plug-in.
 		
@@ -314,14 +325,21 @@
 	
 	// Resize the image using a CIAffineTransform filter.  A nearest neighbor approach would be even better
 	// TODO: Resize using nearest neighbor, not an affine transform.  Or perhaps this is already doing a pixel-y version?
-	CIFilter *resizeFilter = [CIFilter filterWithName:@"CIAffineTransform"];
-	NSAffineTransform *affineTransform = [NSAffineTransform transform];
-	[affineTransform scaleXBy: scale yBy: scale];
-	[resizeFilter setValue:affineTransform forKey:@"inputTransform"];
-	[resizeFilter setValue:image forKey:@"inputImage"];
-	// [resizeFilter setValue:saturatedImage forKey:@"inputImage"];
-	CIImage *resizedImage = [resizeFilter valueForKey:@"outputImage"];
+//	CIFilter *resizeFilter = [CIFilter filterWithName:@"CIAffineTransform"];
+//	NSAffineTransform *affineTransform = [NSAffineTransform transform];
+//	[affineTransform scaleXBy: scale yBy: scale];
+//	[resizeFilter setValue:affineTransform forKey:@"inputTransform"];
+//	[resizeFilter setValue:image forKey:@"inputImage"];
+// [resizeFilter setValue:saturatedImage forKey:@"inputImage"];
 	
+	// Resize the image (retain the original ratio) to a width of 320 pixels
+	CIFilter *initialResizeFilter = [self resizeFilter:scale heightScale:scale image:image];
+	CIImage *initialResizedImage =  [initialResizeFilter valueForKey:@"outputImage"];
+	
+	// Squash the image horizontally so it is only 160 pixels in width.  This will resized again later.
+	CIFilter *squashedResizeFilter = [self resizeFilter:0.5 heightScale: 1.0 image: initialResizedImage];
+	CIImage *resizedImage = [squashedResizeFilter valueForKey:@"outputImage"];
+		
 	// Apply the Posterize CIFilter to reduce the number of colors
 	// Color Posterize
 //	CIFilter* posterize = [CIFilter filterWithName:@"CIColorPosterize"];
@@ -330,13 +348,39 @@
 //	[posterize setValue:resizedImage forKey:@"inputImage"];
 //	CIImage *posterizeResult = [posterize valueForKey:@"outputImage"];
 	
+	// Resize once more to stretch out the pixels so they are double-wide pixels to simulate the double-wide
+	// pixels of a Sierra AGI game which had a resolution of 160x200, but was stretched out to 320x200
+//	CIFilter *enlargedResizeFilter = [self resizeFilter:2.0 heightScale: 1.0 image: resizedImage];
+//	CIImage *enlargedResizedImage = [enlargedResizeFilter valueForKey:@"outputImage"];
+	
+//	CIFilter *pixelateFilter = [CIFilter filterWithName:@"CIPixellate"];
+//	[pixelateFilter setDefaults];
+//	[pixelateFilter setValue:[NSNumber numberWithFloat:1] forKey:@"inputScale"];
+//	[pixelateFilter setValue:enlargedResizedImage forKey:@"inputImage"];
+//	CIImage *pixelatedImage = [pixelateFilter valueForKey:@"outputImage"];
+	
 	// Cycle through each pixel and find the nearest color and replace it in the standard EGA palette
 	// The performance of this sucks horribly and really could be optimized and parallellized
 	NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCIImage: resizedImage];
+	
 	// NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCIImage: posterizeResult]; // If I want to posterize the image
 	NSSize bitmapSize = [bitmap size];  // Get the size of the bitmap
 	int height = (int)bitmapSize.height;
 	int width = (int)bitmapSize.width;
+	
+	// Draw out the updated colors to the resizedBitmap to create the pixelated double-wide pixels look
+    NSBitmapImageRep *resizedBitmap = [[NSBitmapImageRep alloc]
+              initWithBitmapDataPlanes:NULL
+                            pixelsWide:width*2
+                            pixelsHigh:height
+                         bitsPerSample:8
+                       samplesPerPixel:4
+                              hasAlpha:YES
+                              isPlanar:NO
+                        colorSpaceName:NSCalibratedRGBColorSpace
+                           bytesPerRow:0
+                          bitsPerPixel:0];
+    resizedBitmap.size = NSMakeSize(width*2, height);
 		
 	// Use GCD to help parallelize this, otherwise this is noticeably slooooow
 	// https://oleb.net/blog/2013/07/parallelize-for-loops-gcd-dispatch_apply/
@@ -349,21 +393,20 @@
 			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
 			NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
 			
-			[bitmap setColor: newPixelColor atX: x y: y];
+			[resizedBitmap setColor: newPixelColor atX: (2*x) y: y];
+			[resizedBitmap setColor: newPixelColor atX: (2*x)+1 y: y];
+			
 		}
 	});
-	
-	// TODO: Need to resize once more to stretch out the pixels so they are double-wide pixels to simulate the
-	// double-wide pixels of a Sierra AGI game which had a resolution of 160x200, but was stretched out to 320x200
-	
+		
 	// Resize the canvas
 	id <ACDocument> theDoc = [[NSDocumentController sharedDocumentController] currentDocument];
 	NSSize newCanvasSize = NSMakeSize(initialImageSize.width*scale, initialImageSize.height*scale);
 	[theDoc setCanvasSize: newCanvasSize];
 	
 	// Return the modified CIImage
-	CIImage *outputImage = [[CIImage alloc] initWithBitmapImageRep: bitmap];
-	
+	CIImage *outputImage = [[CIImage alloc] initWithBitmapImageRep: resizedBitmap];
+		
 	return outputImage;
 }
 
