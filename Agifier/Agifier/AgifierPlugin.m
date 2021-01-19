@@ -31,11 +31,11 @@
 }
 
 // Reduce each color component to the closest EGA-style equivalent value.
-// In hex, each component can only be 00, 55, AA, or FF (0, 85, 170, 255)
-// 00 = 0 = 0
-// 55 = 85 = 0.333333
-// AA = 170 = 0.6666667
-// FF = 255 = 1.0
+// In hex, each component can only be 0x00, 0x55, 0xAA, or 0xFF (0, 85, 170, 255)
+// 0x00 = 0 = 0
+// 0x55 = 85 = 0.333333
+// 0xAA = 170 = 0.6666667
+// 0xFF = 255 = 1.0
 - (CGFloat) bestColorComponentValue: (CGFloat) colorComponent
 {
 	if (colorComponent < 0.166666)
@@ -187,11 +187,11 @@
 		@"FFFFFF": @15
 	};
     
-	// Get the normalized color where each RGB component is set to either 00, 55, AA, or FF
+	// Get the normalized color where each RGB component is set to either 0x00, 0x55, 0xAA, or 0xFF
 	NSColor *updatedPixelColor = [self closerEGAColor:pixelColor];
 	NSString *updatedPixelHexValue = [self convertNSColorToHex:updatedPixelColor];
-	NSNumber *colorPaletteIndex = colorMatch[updatedPixelHexValue]; // Find the closest matching EGA color
-	
+	NSNumber *colorPaletteIndex = colorMatch[updatedPixelHexValue]; // Find the closest matching color in the 16-color palette
+
 	return colorPalette[[colorPaletteIndex intValue]];
 }
 
