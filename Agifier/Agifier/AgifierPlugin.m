@@ -8,6 +8,7 @@
 //	Copy this plug-in to the ~/Library/Application Support/Acorn/Plug-Ins folder
 
 #import "AgifierPlugin.h"
+#import <CoreImage/CoreImage.h>
 
 @implementation AgifierPlugin
 
@@ -29,6 +30,21 @@
 - (void)didRegister {
     
 }
+
+- (NSNumber*) worksOnShapeLayers:(id)userObject {
+	return [NSNumber numberWithBool:NO];
+}
+
+- (NSNumber*) validateForLayer:(id<ACLayer>)layer {
+	
+	if ([layer layerType] == ACBitmapLayer) {
+		return [NSNumber numberWithBool:YES];
+	}
+	
+	return [NSNumber numberWithBool:NO];
+}
+
+#pragma mark - Custom AGIfier Methods
 
 // Reduce each color component to the closest EGA-style equivalent value.
 // In hex, each component can only be 0x00, 0x55, 0xAA, or 0xFF (0, 85, 170, 255)
@@ -196,6 +212,178 @@
 }
 
 
+/// Finds the closest EGA color using a standard Euclidian calculation
+/// @param pixelColor Original color
+- (NSColor *) estimatedEGAColor:(NSColor *)pixelColor
+{
+	
+	// Below was the original code that performed a mathematical calculation of the "closest" EGA
+	// color, but some colors (especially yellows and greens) need more curation to ensure a more
+	// "proper" color is selected.
+	
+	int indexOfClosestColor = 0;
+	double shortestDistance = 255 * sqrt(3.0);
+	NSArray *colorPalette = @[	[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 0.0 alpha: 1.0], // 0: Black
+							[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // 1: Blue
+							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 0.0 alpha: 1.0], // 2: Green
+							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // 3: Cyan
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 0.0 alpha: 1.0], // 4: Red
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // 5: Magenta
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 85.0/255.0 blue: 0.0 alpha: 1.0], // 6: Brown
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // 7: Light grey
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // 8: Dark grey
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // 9: Light blue
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // 10: Light green
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 1.0 alpha: 1.0], // 11: Light cyan
+							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // 12: Light red
+							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // 13: Light magenta
+							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // 14: Yellow
+							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0], // 15: White
+						];
+	
+	
+	// Loop through all 16 possible EGA colors
+	// Perform the calculation of how "far" pixelColor is from an EGA color
+	// If the distance is 0, then it is a perfect match.  Stop looping.
+	// Otherwise, keep looping and just keep track of the color with the "shortest" distance.
+	// Side note: if we really wanted to get fancy, just cache each color into a dictionary
+	// and initially do a look up to determine the best EGA color for a given color before
+	// looping through.  But that would probably be a better solution for really large images.
+	
+	// Initial results: This seems to do well with greys and golds/browns, but fails
+	// when it comes to colors like greens, blues, or yellows.  Perhaps increase the color saturation?
+	// Would changing the color then resizing help?  That would be a lot more processing, though.
+	
+	NSColor *updatedPixelColor = [self closerEGAColor:pixelColor];
+	CGFloat r2 = [updatedPixelColor redComponent];
+	CGFloat g2 = [updatedPixelColor greenComponent];
+	CGFloat b2 = [updatedPixelColor blueComponent];
+	
+	for (int i = 0; i < 16; i++)
+	{
+		NSColor *currentColor = colorPalette[i];
+		
+		CGFloat r1 = [currentColor redComponent];
+		CGFloat g1 = [currentColor greenComponent];
+		CGFloat b1 = [currentColor blueComponent];
+		
+		int rCoefficient, gCoefficient, bCoefficient;
+		
+		CGFloat r = (r1+r2)/2;
+		NSLog(@"r: %f", r);
+		
+		// https://shihn.ca/posts/2020/dithering/
+		// https://en.wikipedia.org/wiki/Color_difference
+		// The human eye perceives certain colors stronger than others, so some adjustments are made.
+		if (r < 0.5)
+		{
+			rCoefficient = 2;
+			gCoefficient = 4;
+			bCoefficient = 3;
+		}
+		else
+		{
+			rCoefficient = 3;
+			gCoefficient = 4;
+			bCoefficient = 2;
+		}
+		
+		// Good old algebra used to calculate the distance between the color components in 3D space
+		// FIXME: Don't need to use sqrt since just need to find the closest, and running sqrt is just an
+		// extra, expensive mathematical operation we don't need to use.
+		// Also should cache these values to speed up this process.
+		// Another way to use things is to convert RGB to CIE Lab colorspace and perform the calculation that way,
+		// but the difference might be negligible.
+		//CGFloat distance = sqrt(rCoefficient * pow((r2 - r1), 2) + gCoefficient * pow((g2 - g1), 2) + bCoefficient * pow((b2 - b1), 2));
+		CGFloat distance = rCoefficient * pow((r2 - r1), 2) + gCoefficient * pow((g2 - g1), 2) + bCoefficient * pow((b2 - b1), 2);
+		// CGFloat distance = pow((r2 - r1), 2) + pow((g2 - g1), 2) + pow((b2 - b1), 2);
+
+		
+		if (distance == 0.0)
+		{
+			shortestDistance = distance;
+			indexOfClosestColor = i;
+			break;
+		}
+		else if (i == 0)
+		{
+			shortestDistance = distance;
+			indexOfClosestColor = i;
+		}
+		else
+		{
+			// What if distance == shortestDistance?
+			if (distance < shortestDistance)
+			{
+				shortestDistance = distance;
+				indexOfClosestColor = i;
+			}
+		}
+	}
+	// NSLog(@"shortestDistance: %f indexOFClosestColor: %d", shortestDistance, indexOfClosestColor);
+
+	return colorPalette[indexOfClosestColor];
+}
+
+- (NSColor *)rgbToLab:(NSColor *)rgbColor {
+	
+	NSColor *labColor;
+	
+	CGFloat r = [rgbColor redComponent];
+	CGFloat g = [rgbColor greenComponent];
+	CGFloat b = [rgbColor blueComponent];
+	
+	// The sRGB component values R, G, B are in the range 0 to 1. When represented digitally as 8-bit numbers, these color component values are in the range of 0 to 255, and should be divided (in a floating point representation) by 255 to convert to the range of 0 to 1.
+	
+	// Normalize the rgb values (but that is dependent on how the RGB components are returned
+	r = r / 255;
+	g = g / 255;
+	b = b / 255;
+	
+	// Conversion from RGB to XYZ: http://www.easyrgb.com/en/math.php#text2
+	r = (r > 0.04045) ? pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+	g = (g > 0.04045) ? pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+	b = (b > 0.04045) ? pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+	
+	// D65 ("white") is 1.0 (X = 0.9505, Y = 1.0000, Z = 1.0890).
+	// D65: https://en.wikipedia.org/wiki/Illuminant_D65
+	// Observer= 2°, Illuminant= D65
+	// Normalizing for relative luminance (i.e. set Y = 100), the XYZ tristimulus values are
+	// X	=95.047	Y	=100	Z	=108.883
+	CGFloat x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+	CGFloat y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.00000;
+	CGFloat z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+	
+	x = (x > 0.008856) ? pow(x, 1 / 3) : (7.787 * x) + 16.0 / 116.0;
+	y = (y > 0.008856) ? pow(y, 1 / 3) : (7.787 * y) + 16.0 / 116.0;
+	z = (z > 0.008856) ? pow(z, 1 / 3) : (7.787 * z) + 16.0 / 116.0;
+
+	// Need to verify if once normalizing by 255, if any of these are still above 1.0.  If so, then
+	// need to use another structure to hold the CIE Lab* value.
+	CGFloat CIEL = (116 * y)  - 16;
+	CGFloat CIEa = 500 * (x - y);
+	CGFloat CIEb = 200 * (y - z);
+	
+	// Note: This is incomplete.  Based off the logic from
+	// https://github.com/pshihn/cielab-dither/blob/master/src/colors.ts
+	
+//	const lab: Color = [
+//	  (116 * y) - 16,
+//	  500 * (x - y),
+//	  200 * (y - z)
+//	];
+//	_RgbLabMap.set(key, lab);
+	
+	return labColor;
+}
+
+// This is is a stub method.  Fill out later if the RGB-Lab color conversion is implemented.
+- (NSColor *)labToRgb:(NSColor *)labColor {
+	NSColor *rgbColor;
+	
+	return rgbColor;
+}
+
 /// Create a filter to resize a CIImage
 /// @param widthScale The scale for the intended width
 /// @param heightScale The scale for the intended height
@@ -269,24 +457,108 @@
                            bytesPerRow:0
                           bitsPerPixel:0];
     resizedBitmap.size = NSMakeSize(width*2, height);
-		
+	
+	// For 2.0:
+	// Use a dithering algorithm to spread out the quantization error.  Use a standard Euclidian closest color
+	// to determine a close EGA color.
+	
 	// Use GCD to help parallelize this, otherwise this is noticeably slooooow
 	// https://oleb.net/blog/2013/07/parallelize-for-loops-gcd-dispatch_apply/
 	// https://www.objc.io/issues/2-concurrency/low-level-concurrency-apis/
+	/*
 	dispatch_apply(width, dispatch_get_global_queue(0, 0), ^(size_t x) {
 		for (size_t y = 0; y < height; y++) {
 			// https://ua.reonis.com/index.php?topic=3797.msg54893#msg54893
 			// The above link mentions a very similar logic, except it then maps each of the possible 64 colors
 			// to a 16 color EGA palette.
 			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
-			NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
+			NSColor *newPixelColor = [self estimatedEGAColor: originalPixelColor];
+			// NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
 			
 			// Draw out the double-wide pixel to resizedBitmap
 			[resizedBitmap setColor: newPixelColor atX: (2*x) y: y];
 			[resizedBitmap setColor: newPixelColor atX: (2*x)+1 y: y];
 		}
 	});
+	*/
+	
+	// Put new implementation here to get the current color from the image (try both the original and 64-EGA color variant)
+	// find the closest 16 EGA color, then perform dithering.  Start with the F-S dither and perhaps add additional
+	// dithering algorithms later.
+	// Because the dithering is applied, each of these calculations needs to be done sequentially and cannot be done
+	// in parallel now
+	for (size_t y = 0; y < height; y++) {
+		for (size_t x = 0; x < width; x++) {
+			// Get the current color, then find the closest EGA color
+			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
+			NSColor *newPixelColor = [self estimatedEGAColor: originalPixelColor];
+			
+			// Calculate the diffusion error between the two colors
+			NSColor *diffColor = [self subtractColors:originalPixelColor newColor:newPixelColor];
+			
+			// Distribute the error around the current pixel using the Floyd-Steinberg dithering algorithm
+			// Can I loop through an array of dictionaries and also check to avoid any out-of-array values?
+			// [x+1, y] -> 7/16
+			if (x >= 0 && x < width && y >= 0 && y < height) {
+				
+				NSColor *nextColor = [bitmap colorAtX:x+1 y:y];
+				// Need to multiply the diffusion error by the diffColor, then add the two colors
+				CGFloat diffusionError = 7.0/16.0;
+				// Need to apply the error fraction
+				NSColor *diffColorWithError = [self multiplyColor:diffColor withDiffusionError:diffusionError];
+				NSColor *diffusedColor = [self addColors:nextColor newColor:diffColorWithError];
+				// Set the updated color in the source bitmap so the error propogates
+				NSLog(@"Original color: %@ | Diffused color: %@", nextColor, diffusedColor);
+				[bitmap setColor:diffusedColor atX:x+1 y:y];
+			}
+			
+			
+			// [x+1, y+1] -> 1/16
+			if (x >= 0 && x < width && y >= 0 && y < height) {
+				NSColor *nextColor = [bitmap colorAtX:x+1 y:y+1];
+				// Need to multiply the diffusion error by the diffColor, then add the two colors
+				CGFloat diffusionError = 1.0/16.0;
+				// Need to apply the error fraction
+				NSColor *diffColorWithError = [self multiplyColor:diffColor withDiffusionError:diffusionError];
+				NSColor *diffusedColor = [self addColors:nextColor newColor:diffColorWithError];
+				// Set the updated color in the source bitmap so the error propogates
+				NSLog(@"Original color: %@ | Diffused color: %@", nextColor, diffusedColor);
+				[bitmap setColor:diffusedColor atX:x+1 y:y+1];
+			}
+			
+			// [x, y+1] -> 5/16
+			if (x >= 0 && x < width && y >= 0 && y < height) {
+				NSColor *nextColor = [bitmap colorAtX:x y:y+1];
+				// Need to multiply the diffusion error by the diffColor, then add the two colors
+				CGFloat diffusionError = 5.0/16.0;
+				// Need to apply the error fraction
+				NSColor *diffColorWithError = [self multiplyColor:diffColor withDiffusionError:diffusionError];
+				NSColor *diffusedColor = [self addColors:nextColor newColor:diffColorWithError];
+				// Set the updated color in the source bitmap so the error propogates
+				NSLog(@"Original color: %@ | Diffused color: %@", nextColor, diffusedColor);
+				[bitmap setColor:diffusedColor atX:x y:y+1];
+			}
+			
+			// [x-1, y+1] -> 3/16
+			if (x >= 0 && x < width && y >= 0 && y < height) {
+				NSColor *nextColor = [bitmap colorAtX:x-1 y:y+1];
+				// Need to multiply the diffusion error by the diffColor, then add the two colors
+				CGFloat diffusionError = 3.0/16.0;
+				// Need to apply the error fraction
+				NSColor *diffColorWithError = [self multiplyColor:diffColor withDiffusionError:diffusionError];
+				NSColor *diffusedColor = [self addColors:nextColor newColor:diffColorWithError];
+				// Set the updated color in the source bitmap so the error propogates
+				NSLog(@"Original color: %@ | Diffused color: %@", nextColor, diffusedColor);
+				[bitmap setColor:diffusedColor atX:x-1 y:y+1];
+			}
+			
+			// Draw out the double-wide pixel to resizedBitmap
+			[resizedBitmap setColor: newPixelColor atX: (2*x) y: y];
+			[resizedBitmap setColor: newPixelColor atX: (2*x)+1 y: y];
+		}
+	}
 		
+	
 	// Resize the canvas
 	id <ACDocument> theDoc = [[NSDocumentController sharedDocumentController] currentDocument];
 	NSSize newCanvasSize = NSMakeSize(initialImageSize.width*scale, initialImageSize.height*scale);
@@ -298,17 +570,31 @@
 	return outputImage;
 }
 
-- (NSNumber*) worksOnShapeLayers:(id)userObject {
-    return [NSNumber numberWithBool:NO];
+- (NSColor *)addColors: (NSColor *)oldColor newColor: (NSColor*) newColor {
+	CGFloat redDiff   = [oldColor redComponent] + [newColor redComponent];
+	CGFloat greenDiff = [oldColor greenComponent] + [newColor greenComponent];
+	CGFloat blueDiff  = [oldColor blueComponent] + [newColor blueComponent];
+	NSColor *diffColor = [NSColor colorWithCalibratedRed: redDiff green: greenDiff blue: blueDiff alpha: 1.0];
+	
+	return diffColor;
 }
 
-- (NSNumber*) validateForLayer:(id<ACLayer>)layer {
-    
-    if ([layer layerType] == ACBitmapLayer) {
-        return [NSNumber numberWithBool:YES];
-    }
-    
-    return [NSNumber numberWithBool:NO];
+- (NSColor *)subtractColors: (NSColor *)oldColor newColor: (NSColor*) newColor {
+	CGFloat redDiff   = [oldColor redComponent] - [newColor redComponent];
+	CGFloat greenDiff = [oldColor greenComponent] - [newColor greenComponent];
+	CGFloat blueDiff  = [oldColor blueComponent] - [newColor blueComponent];
+	NSColor *diffColor = [NSColor colorWithCalibratedRed: redDiff green: greenDiff blue: blueDiff alpha: 1.0];
+	
+	return diffColor;
+}
+
+- (NSColor *)multiplyColor: (NSColor *)oldColor withDiffusionError:(CGFloat) diffusionError {
+	CGFloat redDiff   = [oldColor redComponent] * diffusionError;
+	CGFloat greenDiff = [oldColor greenComponent] * diffusionError;
+	CGFloat blueDiff  = [oldColor blueComponent] * diffusionError;
+	NSColor *diffColor = [NSColor colorWithCalibratedRed: redDiff green: greenDiff blue: blueDiff alpha: 1.0];
+
+	return diffColor;
 }
 
 @end
