@@ -109,6 +109,8 @@
 }
 
 /// Calculate and return the closest EGA color to the given pixelColor
+/// This uses a predetermined color palette to match any color to the
+/// standard 16 color EGA palette.
 /// Note: There are still issues with trying to select a proper EGA color
 /// Might need to saturate the colors or determine a better algorithm to
 /// choose better colors so things like grass and leaves will be some shade
@@ -336,9 +338,10 @@
 	// The sRGB component values R, G, B are in the range 0 to 1. When represented digitally as 8-bit numbers, these color component values are in the range of 0 to 255, and should be divided (in a floating point representation) by 255 to convert to the range of 0 to 1.
 	
 	// Normalize the rgb values (but that is dependent on how the RGB components are returned
-	r = r / 255;
-	g = g / 255;
-	b = b / 255;
+	// This step is probably not needed since the color components are between 0 and 1, not values 0-255
+//	r = r / 255;
+//	g = g / 255;
+//	b = b / 255;
 	
 	// Conversion from RGB to XYZ: http://www.easyrgb.com/en/math.php#text2
 	r = (r > 0.04045) ? pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
@@ -349,14 +352,16 @@
 	// D65: https://en.wikipedia.org/wiki/Illuminant_D65
 	// Observer= 2°, Illuminant= D65
 	// Normalizing for relative luminance (i.e. set Y = 100), the XYZ tristimulus values are
-	// X	=95.047	Y	=100	Z	=108.883
+	// X=95.047, Y=100, Z=108.883
 	CGFloat x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
 	CGFloat y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.00000;
 	CGFloat z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
 	
-	x = (x > 0.008856) ? pow(x, 1 / 3) : (7.787 * x) + 16.0 / 116.0;
-	y = (y > 0.008856) ? pow(y, 1 / 3) : (7.787 * y) + 16.0 / 116.0;
-	z = (z > 0.008856) ? pow(z, 1 / 3) : (7.787 * z) + 16.0 / 116.0;
+	// Verify if that last part is just supposed to be 16/116, or if 116 is supposed to divide against a larger part.
+	// https://www.beliefmedia.com.au/convert-xyz-cielab seems to confirm this
+	x = (x > 0.008856) ? pow(x, 1 / 3) : (7.787 * x) + (16.0 / 116.0);
+	y = (y > 0.008856) ? pow(y, 1 / 3) : (7.787 * y) + (16.0 / 116.0);
+	z = (z > 0.008856) ? pow(z, 1 / 3) : (7.787 * z) + (16.0 / 116.0);
 
 	// Need to verify if once normalizing by 255, if any of these are still above 1.0.  If so, then
 	// need to use another structure to hold the CIE Lab* value.
@@ -491,7 +496,7 @@
 		for (size_t x = 0; x < width; x++) {
 			// Get the current color, then find the closest EGA color
 			NSColor *originalPixelColor = [bitmap colorAtX:x y:y];
-			NSColor *newPixelColor = [self estimatedEGAColor: originalPixelColor];
+			NSColor *newPixelColor = [self closestEGAColor: originalPixelColor];
 			
 			// Calculate the diffusion error between the two colors
 			NSColor *diffColor = [self subtractColors:originalPixelColor newColor:newPixelColor];
@@ -555,6 +560,9 @@
 			// Draw out the double-wide pixel to resizedBitmap
 			[resizedBitmap setColor: newPixelColor atX: (2*x) y: y];
 			[resizedBitmap setColor: newPixelColor atX: (2*x)+1 y: y];
+			
+			// Used for single-width pixels
+			// [resizedBitmap setColor: newPixelColor atX: x y: y];
 		}
 	}
 		
