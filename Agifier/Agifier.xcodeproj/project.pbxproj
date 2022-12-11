@@ -7,10 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8410DCCF293D9AD2005D8DCC /* CIELabColor.m in Sources */ = {isa = PBXBuildFile; fileRef = 8410DCCE293D9AD2005D8DCC /* CIELabColor.m */; };
 		84F85BCC24C00102005CE5B2 /* AgifierPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 84F85BCB24C00102005CE5B2 /* AgifierPlugin.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8410DCCD293D9AD2005D8DCC /* CIELabColor.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CIELabColor.h; sourceTree = "<group>"; };
+		8410DCCE293D9AD2005D8DCC /* CIELabColor.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CIELabColor.m; sourceTree = "<group>"; };
 		84F85BC124C000BB005CE5B2 /* Agifier.acplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Agifier.acplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		84F85BC424C000BB005CE5B2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		84F85BCA24C00102005CE5B2 /* AgifierPlugin.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AgifierPlugin.h; sourceTree = "<group>"; };
@@ -52,6 +55,8 @@
 				84F85BC424C000BB005CE5B2 /* Info.plist */,
 				84F85BCA24C00102005CE5B2 /* AgifierPlugin.h */,
 				84F85BCB24C00102005CE5B2 /* AgifierPlugin.m */,
+				8410DCCD293D9AD2005D8DCC /* CIELabColor.h */,
+				8410DCCE293D9AD2005D8DCC /* CIELabColor.m */,
 			);
 			path = Agifier;
 			sourceTree = "<group>";
@@ -124,6 +129,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				84F85BCC24C00102005CE5B2 /* AgifierPlugin.m in Sources */,
+				8410DCCF293D9AD2005D8DCC /* CIELabColor.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

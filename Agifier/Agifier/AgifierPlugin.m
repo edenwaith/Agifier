@@ -8,7 +8,12 @@
 //	Copy this plug-in to the ~/Library/Application Support/Acorn/Plug-Ins folder
 
 #import "AgifierPlugin.h"
+#import "CIELabColor.h"
 #import <CoreImage/CoreImage.h>
+
+// The compiler warns that these macros are already defined
+//#define MAX(a,b) ((a) > (b) ? (a) : (b))
+//#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 @implementation AgifierPlugin
 
@@ -213,6 +218,50 @@
 	return colorPalette[[colorPaletteIndex intValue]];
 }
 
+- (NSColor *) closestCIELabColor:(NSColor *)pixelColor {
+
+	// Use CIE Lab colors to compare colors.
+	int indexOfClosestColor = 0;
+	double shortestDistance = 255 * sqrt(3.0); // this probably needs to be updated, or use some MAX value
+	NSArray *labColorPalette = @[	[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 0.0 alpha: 1.0]], // 0: Black
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0]], // 1: Blue
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 0.0 alpha: 1.0]], // 2: Green
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0]], // 3: Cyan
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 0.0 alpha: 1.0]], // 4: Red
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0]], // 5: Magenta
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 170.0/255.0 green: 85.0/255.0 blue: 0.0 alpha: 1.0]], // 6: Brown
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 170.0/255.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0]], // 7: Light grey
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0]], // 8: Dark grey
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0]], // 9: Light blue
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0]], // 10: Light green
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 1.0 alpha: 1.0]], // 11: Light cyan
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0]], // 12: Light red
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0]], // 13: Light magenta
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0]], // 14: Yellow
+								[CIELabColor colorWithNSColor:[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0]] // 15: White
+						];
+	NSArray *colorPalette = @[	[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 0.0 alpha: 1.0], // 0: Black
+							[NSColor colorWithCalibratedRed: 0.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // 1: Blue
+							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 0.0 alpha: 1.0], // 2: Green
+							[NSColor colorWithCalibratedRed: 0.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // 3: Cyan
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 0.0 alpha: 1.0], // 4: Red
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 0.0 blue: 170.0/255.0 alpha: 1.0], // 5: Magenta
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 85.0/255.0 blue: 0.0 alpha: 1.0], // 6: Brown
+							[NSColor colorWithCalibratedRed: 170.0/255.0 green: 170.0/255.0 blue: 170.0/255.0 alpha: 1.0], // 7: Light grey
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // 8: Dark grey
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // 9: Light blue
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // 10: Light green
+							[NSColor colorWithCalibratedRed: 85.0/255.0 green: 1.0 blue: 1.0 alpha: 1.0], // 11: Light cyan
+							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 85.0/255.0 alpha: 1.0], // 12: Light red
+							[NSColor colorWithCalibratedRed: 1.0 green: 85.0/255.0 blue: 1.0 alpha: 1.0], // 13: Light magenta
+							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 85.0/255.0 alpha: 1.0], // 14: Yellow
+							[NSColor colorWithCalibratedRed: 1.0 green: 1.0 blue: 1.0 alpha: 1.0], // 15: White
+						];
+	
+	
+
+	return [NSColor redColor]; // Purely temp code
+}
 
 /// Finds the closest EGA color using a standard Euclidian calculation
 /// @param pixelColor Original color
@@ -327,9 +376,9 @@
 	return colorPalette[indexOfClosestColor];
 }
 
-- (NSColor *)rgbToLab:(NSColor *)rgbColor {
+- (CIELabColor *) rgbToLab:(NSColor *)rgbColor {
 	
-	NSColor *labColor;
+	// NSColor *labColor;
 	
 	CGFloat r = [rgbColor redComponent];
 	CGFloat g = [rgbColor greenComponent];
@@ -365,12 +414,15 @@
 
 	// Need to verify if once normalizing by 255, if any of these are still above 1.0.  If so, then
 	// need to use another structure to hold the CIE Lab* value.
-	CGFloat CIEL = (116 * y)  - 16;
+	CGFloat CIEL = (116 * y) - 16;
 	CGFloat CIEa = 500 * (x - y);
 	CGFloat CIEb = 200 * (y - z);
 	
+	CIELabColor *labColor = [CIELabColor colorWithLuminance:CIEL a:CIEa b:CIEb];
+	
 	// Note: This is incomplete.  Based off the logic from
 	// https://github.com/pshihn/cielab-dither/blob/master/src/colors.ts
+	// Also check out: https://patrickwu.space/2016/06/12/csharp-color/#rgb2lab
 	
 //	const lab: Color = [
 //	  (116 * y) - 16,
@@ -383,8 +435,47 @@
 }
 
 // This is is a stub method.  Fill out later if the RGB-Lab color conversion is implemented.
-- (NSColor *)labToRgb:(NSColor *)labColor {
-	NSColor *rgbColor;
+
+
+/// Convert CIE Lab to RGB color
+/// @param labColor CIE Lab color object
+- (NSColor *) labToRgb:(CIELabColor *)labColor {
+	
+	CGFloat y = (labColor.lComponent + 16) / 116.0;
+	CGFloat x = labColor.aComponent / 500.0 + y;
+	CGFloat z = y - labColor.bComponent / 200.0;
+	CGFloat r, g, b = 0; // TODO: Verify that all values are initialized to 0
+	
+//	let y = (lab[0] + 16) / 116;
+//	let x = lab[1] / 500 + y;
+//	let z = y - lab[2] / 200;
+//	let [r, g, b] = [0, 0, 0];
+//
+	x = 0.95047 * ((x * x * x > 0.008856) ? x * x * x : (x - 16 / 116) / 7.787);
+	y = 1.00000 * ((y * y * y > 0.008856) ? y * y * y : (y - 16 / 116) / 7.787);
+	z = 1.08883 * ((z * z * z > 0.008856) ? z * z * z : (z - 16 / 116) / 7.787);
+
+	r = x * 3.2406 + y * -1.5372 + z * -0.4986;
+	g = x * -0.9689 + y * 1.8758 + z * 0.0415;
+	b = x * 0.0557 + y * -0.2040 + z * 1.0570;
+
+	r = (r > 0.0031308) ? (1.055 * pow(r, 1 / 2.4) - 0.055) : 12.92 * r;
+	g = (g > 0.0031308) ? (1.055 * pow(g, 1 / 2.4) - 0.055) : 12.92 * g;
+	b = (b > 0.0031308) ? (1.055 * pow(b, 1 / 2.4) - 0.055) : 12.92 * b;
+	
+	// Verify that each r,g,b value is in the 0.0 to 1.0 range.
+	r = MAX(0, MIN(1, r));
+	g = MAX(0, MIN(1, g));
+	b = MAX(0, MIN(1, b));
+	
+//
+//	const rgb: Color = [
+//	  Math.round(Math.max(0, Math.min(1, r)) * 255),
+//	  Math.round(Math.max(0, Math.min(1, g)) * 255),
+//	  Math.round(Math.max(0, Math.min(1, b)) * 255)
+//	];
+	
+	NSColor *rgbColor = [NSColor colorWithCalibratedRed:r green:g blue:b alpha:1.0];
 	
 	return rgbColor;
 }
@@ -578,7 +669,7 @@
 	return outputImage;
 }
 
-- (NSColor *)addColors: (NSColor *)oldColor newColor: (NSColor*) newColor {
+- (NSColor *)addColors: (NSColor *)oldColor newColor: (NSColor *) newColor {
 	CGFloat redDiff   = [oldColor redComponent] + [newColor redComponent];
 	CGFloat greenDiff = [oldColor greenComponent] + [newColor greenComponent];
 	CGFloat blueDiff  = [oldColor blueComponent] + [newColor blueComponent];
@@ -587,7 +678,7 @@
 	return diffColor;
 }
 
-- (NSColor *)subtractColors: (NSColor *)oldColor newColor: (NSColor*) newColor {
+- (NSColor *)subtractColors: (NSColor *)oldColor newColor: (NSColor *) newColor {
 	CGFloat redDiff   = [oldColor redComponent] - [newColor redComponent];
 	CGFloat greenDiff = [oldColor greenComponent] - [newColor greenComponent];
 	CGFloat blueDiff  = [oldColor blueComponent] - [newColor blueComponent];
@@ -603,6 +694,33 @@
 	NSColor *diffColor = [NSColor colorWithCalibratedRed: redDiff green: greenDiff blue: blueDiff alpha: 1.0];
 
 	return diffColor;
+}
+
+- (CIELabColor *)addLabColors: (CIELabColor *)oldColor newColor: (CIELabColor *) newColor {
+	CGFloat lDiff   = [oldColor lComponent] + [newColor lComponent];
+	CGFloat aDiff = [oldColor aComponent] + [newColor aComponent];
+	CGFloat bDiff  = [oldColor bComponent] + [newColor bComponent];
+	CIELabColor *diffLabColor = [CIELabColor colorWithLuminance:lDiff a:aDiff b:bDiff];
+	
+	return diffLabColor;
+}
+
+- (CIELabColor *)subtractLabColors: (CIELabColor *)oldColor newColor: (CIELabColor *) newColor {
+	CGFloat lDiff   = [oldColor lComponent] - [newColor lComponent];
+	CGFloat aDiff = [oldColor aComponent] - [newColor aComponent];
+	CGFloat bDiff  = [oldColor bComponent] - [newColor bComponent];
+	CIELabColor *diffLabColor = [CIELabColor colorWithLuminance:lDiff a:aDiff b:bDiff];
+	
+	return diffLabColor;
+}
+
+- (CIELabColor *)multiplyLabColor: (CIELabColor *)oldColor withDiffusionError:(CGFloat) diffusionError {
+	CGFloat lDiff   = [oldColor lComponent] * diffusionError;
+	CGFloat aDiff = [oldColor aComponent] * diffusionError;
+	CGFloat bDiff  = [oldColor bComponent] * diffusionError;
+	CIELabColor *diffLabColor = [CIELabColor colorWithLuminance:lDiff a:aDiff b:bDiff];
+
+	return diffLabColor;
 }
 
 @end
