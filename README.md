@@ -12,7 +12,7 @@ Version 2 of the Acorn plug-in adds dithering (Floyd-Steinberg algorithm), which
 **Modified by Agifier Acorn Plug-In Version 1.0**  
 !["Modified High Sierra Image - Agifier Plug-In"](Images/High-Sierra_Closer_EGA_Colors.png "Modified High Sierra Image - Agifier Plug-In 1.0")
 
-**Modified by Agifier Acorn Plug-In Version 1.0**  
+**Modified by Agifier Acorn Plug-In Version 2.0**  
 !["Modified High Sierra Image - Agifier Plug-In 2.0"](Images/High-Sierra-AGI-F-S-Dithered.png "Modified High Sierra Image - Agifier Plug-In 2.0")
 
 ## AGI Image Converter Script
